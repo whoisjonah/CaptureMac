@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#4C8DFF"/><stop offset="1" stop-color="#1F5EF0"/>
+</linearGradient>
+<linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+</linearGradient>
+<filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+<feGaussianBlur in="SourceAlpha" stdDeviation="14"/><feOffset dy="12" result="b"/>
+<feComponentTransfer><feFuncA type="linear" slope="0.30"/></feComponentTransfer>
+<feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+</filter>
+</defs>
+<g filter="url(#shadow)">
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#sheen)"/>
+</g>
+<g transform="translate(262 262) scale(4.166666666666667)">
+<g fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 44 V30 a10 10 0 0 1 10 -10 H44"/><path d="M76 20 H90 a10 10 0 0 1 10 10 V44"/><path d="M100 76 V90 a10 10 0 0 1 -10 10 H76"/><path d="M44 100 H30 a10 10 0 0 1 -10 -10 V76"/></g>
+<circle cx="60" cy="60" r="15" fill="#FFFFFF"/>
+</g>
+</svg>

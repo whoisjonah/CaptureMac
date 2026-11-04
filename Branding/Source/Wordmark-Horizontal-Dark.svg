@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="120" viewBox="0 0 560 120">
+<g transform="translate(0 0)">
+<g fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 44 V30 a10 10 0 0 1 10 -10 H44"/><path d="M76 20 H90 a10 10 0 0 1 10 10 V44"/><path d="M100 76 V90 a10 10 0 0 1 -10 10 H76"/><path d="M44 100 H30 a10 10 0 0 1 -10 -10 V76"/></g>
+<circle cx="60" cy="60" r="15" fill="#4C8DFF"/>
+</g>
+<text x="138" y="80" font-family="SF Pro Display, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif" font-size="64" letter-spacing="-1.6"><tspan font-weight="700" fill="#FFFFFF">Capture</tspan><tspan font-weight="300" fill="#A9ADB8">Mac</tspan></text>
+</svg>
