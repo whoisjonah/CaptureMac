@@ -1,3 +1,4 @@
+import CoreImage
 import CoreMedia
 import Foundation
 import ScreenCaptureKit
@@ -19,6 +20,8 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
     private var stream: SCStream?
     private var encoder: VideoEncoder?
     private let queue = DispatchQueue(label: "capturemac.video", qos: .userInteractive)
+    private let context = CIContext(options: [.cacheIntermediates: false])
+    private var pool: CVPixelBufferPool?
 
     init(ring: VideoRing) {
         self.ring = ring
@@ -40,7 +43,6 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
         configuration.scalesToFit = true
         configuration.preservesAspectRatio = true
         configuration.ignoreShadowsSingleWindow = true
-        configuration.shouldBeOpaque = true
 
         let ring = self.ring
         let encoder = try VideoEncoder(
@@ -71,9 +73,73 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .screen, sampleBuffer.isValid, let pixelBuffer = sampleBuffer.imageBuffer else { return }
         guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
-              let rawStatus = attachments.first?[.status] as? Int,
-              SCFrameStatus(rawValue: rawStatus) == .complete else { return }
-        encoder?.encode(pixelBuffer, at: sampleBuffer.presentationTimeStamp)
+              let info = attachments.first,
+              let rawStatus = info[.status] as? Int,
+              SCFrameStatus(rawValue: rawStatus) == .complete, let encoder else { return }
+        encoder.encode(filled(pixelBuffer, info: info), at: sampleBuffer.presentationTimeStamp)
+    }
+
+    private func filled(_ pixelBuffer: CVPixelBuffer, info: [SCStreamFrameInfo: Any]) -> CVPixelBuffer {
+        guard let dictionary = info[.contentRect] as? NSDictionary,
+              let rect = CGRect(dictionaryRepresentation: dictionary as CFDictionary) else { return pixelBuffer }
+        let scale = info[.scaleFactor] as? CGFloat ?? 1
+        let width = CGFloat(CVPixelBufferGetWidth(pixelBuffer))
+        let height = CGFloat(CVPixelBufferGetHeight(pixelBuffer))
+        let bounds = CGRect(x: 0, y: 0, width: width, height: height)
+        var content = CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale, height: rect.height * scale)
+            .integral.intersection(bounds)
+        guard !content.isNull, content.width >= 16, content.height >= 16 else { return pixelBuffer }
+        let visible = (content.width * height / width).rounded()
+        if visible < content.height {
+            content = CGRect(x: content.minX, y: content.maxY - visible, width: content.width, height: visible)
+        }
+        guard width - content.width > 2 || height - content.height > 2,
+              let output = makeBuffer(like: pixelBuffer) else { return pixelBuffer }
+
+        let source = CGRect(x: content.minX, y: height - content.maxY, width: content.width, height: content.height)
+        let fit = min(width / content.width, height / content.height)
+        let target = CGRect(
+            x: ((width - content.width * fit) / 2).rounded(), y: ((height - content.height * fit) / 2).rounded(),
+            width: content.width * fit, height: content.height * fit
+        )
+        let transform = CGAffineTransform(translationX: -source.minX, y: -source.minY)
+            .concatenating(CGAffineTransform(scaleX: fit, y: fit))
+            .concatenating(CGAffineTransform(translationX: target.minX, y: target.minY))
+        let image = CIImage(cvPixelBuffer: pixelBuffer)
+            .cropped(to: source)
+            .clampedToExtent()
+            .transformed(by: transform)
+            .cropped(to: target)
+            .composited(over: CIImage(color: .black).cropped(to: bounds))
+        CVBufferPropagateAttachments(pixelBuffer, output)
+        context.render(image, to: output, bounds: bounds, colorSpace: CGColorSpace(name: CGColorSpace.sRGB))
+        return output
+    }
+
+    private func makeBuffer(like pixelBuffer: CVPixelBuffer) -> CVPixelBuffer? {
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        let format = CVPixelBufferGetPixelFormatType(pixelBuffer)
+        if let pool, let attributes = CVPixelBufferPoolGetPixelBufferAttributes(pool) as? [String: Any],
+           attributes[kCVPixelBufferWidthKey as String] as? Int != width
+            || attributes[kCVPixelBufferHeightKey as String] as? Int != height
+            || attributes[kCVPixelBufferPixelFormatTypeKey as String] as? OSType != format
+        {
+            self.pool = nil
+        }
+        if pool == nil {
+            let attributes: [String: Any] = [
+                kCVPixelBufferWidthKey as String: width,
+                kCVPixelBufferHeightKey as String: height,
+                kCVPixelBufferPixelFormatTypeKey as String: format,
+                kCVPixelBufferIOSurfacePropertiesKey as String: [:] as [String: Any],
+            ]
+            CVPixelBufferPoolCreate(nil, nil, attributes as CFDictionary, &pool)
+        }
+        guard let pool else { return nil }
+        var output: CVPixelBuffer?
+        CVPixelBufferPoolCreatePixelBuffer(nil, pool, &output)
+        return output
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
