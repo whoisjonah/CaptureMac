@@ -221,14 +221,19 @@ private struct EditorContent: View {
 
                 HStack(spacing: 8) {
                     Button {
-                        Task { await model.saveCopy() }
+                        Task { await model.save() }
                     } label: {
-                        Text("Save copy").frame(maxWidth: .infinity)
+                        Text("Save").frame(maxWidth: .infinity)
                     }
                     Button {
-                        Task { await model.saveAs() }
+                        Task { await model.copy() }
                     } label: {
-                        Text("Save as…").frame(maxWidth: .infinity)
+                        Text("Copy").frame(maxWidth: .infinity)
+                    }
+                    Button(role: .destructive) {
+                        Actions.delete(ClipLibrary.shared.clip(model.clip.id) ?? model.clip)
+                    } label: {
+                        Text("Delete").frame(maxWidth: .infinity)
                     }
                 }
                 .disabled(busy)

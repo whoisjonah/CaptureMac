@@ -246,7 +246,7 @@ final class EditorModel {
         }
     }
 
-    func saveCopy() async {
+    func save() async {
         let base = clip.url.deletingPathExtension().lastPathComponent + " edit"
         var destination = clip.url.deletingLastPathComponent().appendingPathComponent(base).appendingPathExtension("mp4")
         var counter = 2
@@ -255,19 +255,23 @@ final class EditorModel {
             counter += 1
         }
         guard await export(to: destination) else { return }
-        if let copy = await ClipLibrary.shared.importFile(at: destination, title: destination.deletingPathExtension().lastPathComponent, appName: clip.appName, bundleID: clip.bundleID) {
-            message = "Saved \(copy.title)"
+        if let saved = await ClipLibrary.shared.importFile(at: destination, title: destination.deletingPathExtension().lastPathComponent, appName: clip.appName, bundleID: clip.bundleID) {
+            message = "Saved \(saved.title)"
+            Actions.clipSaved(saved)
         }
     }
 
-    func saveAs() async {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = clip.url.deletingPathExtension().lastPathComponent + ".mp4"
-        panel.allowedContentTypes = [.mpeg4Movie]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        if await export(to: url) {
-            message = "Exported to \(url.lastPathComponent)"
+    func copy() async {
+        var file = clip.url
+        if edits != nil || volumes != nil || preset != .original {
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            file = folder.appendingPathComponent(clip.url.deletingPathExtension().lastPathComponent).appendingPathExtension("mp4")
+            guard await export(to: file) else { return }
         }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([file as NSURL])
+        message = "Copied"
     }
 
     func upload() async {
